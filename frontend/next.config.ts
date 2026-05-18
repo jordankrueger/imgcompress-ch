@@ -16,6 +16,8 @@ const getNextConfig = () => {
   // ------------------------------
   if (buildMode === 'dev') {
     return {
+      basePath: '/image-pro',
+      assetPrefix: '/image-pro',
       experimental: {
         proxyClientMaxBodySize: proxyClientMaxBodySizeValue,
       },
@@ -34,6 +36,8 @@ const getNextConfig = () => {
   // EXPORT MODE (build / CI / prod)
   // ------------------------------
   return {
+    basePath: '/image-pro',
+    assetPrefix: '/image-pro',
     experimental: {
       proxyClientMaxBodySize: proxyClientMaxBodySizeValue,
     },

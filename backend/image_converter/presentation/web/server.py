@@ -26,7 +26,7 @@ app = Flask(
     static_url_path="/static"
 )
 app.config["MAX_FORM_MEMORY_SIZE"] = None
-app.config["MAX_CONTENT_LENGTH"] = 40 * 1024 * 1024 * 1024  # 40GB upload limit of api
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # CH: 100 MB upload cap (was 40 GB upstream)
 
                             
 app_logger = Logger(debug=False, json_output=False)
@@ -85,7 +85,30 @@ def start_scheduler():
     scheduler.start()
     app_logger.log("Scheduler started for periodic temp folder cleanup.", "info")
 
-                                                              
+
+# CH: strip /image-pro prefix so existing Flask routes serve at root
+class _StripImageProPrefix:
+    def __init__(self, app):
+        self.app = app
+    def __call__(self, environ, start_response):
+        path = environ.get("PATH_INFO", "")
+        if path.startswith("/image-pro"):
+            environ["PATH_INFO"] = path[len("/image-pro"):] or "/"
+            environ["SCRIPT_NAME"] = (environ.get("SCRIPT_NAME") or "") + "/image-pro"
+        return self.app(environ, start_response)
+app.wsgi_app = _StripImageProPrefix(app.wsgi_app)
+
+# CH patches: privacy hook + temp cleanup scheduler (normally launched by bootstraper)
+from backend.image_converter.presentation.web import ch_privacy  # noqa: E402
+ch_privacy.register(app)
+
+# Start the upstream cleanup scheduler at WSGI import time (Gunicorn skips bootstraper)
+import os as _os  # noqa: E402
+if _os.environ.get("CH_DISABLE_UPSTREAM_SCHEDULER") != "1":
+    try:
+        start_scheduler()
+    except Exception as _exc:  # noqa: BLE001
+        app_logger.log(f"Could not start upstream scheduler: {_exc}", "error")
+
 if __name__ == "__main__":
-    start_scheduler()
     app.run(host="0.0.0.0", port=5000, threaded=True)

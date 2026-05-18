@@ -17,4 +17,4 @@ EOF
 #echo "Generated runtime config:"
 #cat "$CONFIG_DIR/runtime.json"
 
-exec python -m backend.image_converter.bootstraper "$@"
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

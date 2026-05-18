@@ -57,6 +57,12 @@ RUN set -eux; \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# CH: nginx + supervisord for multi-process container, gunicorn for production WSGI
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nginx supervisor && \
+    rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir gunicorn==23.0.0
+
 # Set the working directory.
 WORKDIR /container
 
@@ -69,6 +75,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ /container/backend
 COPY entrypoint.sh /container/entrypoint.sh
 RUN chmod +x /container/entrypoint.sh
+
+# CH: supervisord + nginx config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY nginx.image-pro.conf /etc/nginx/sites-available/default
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 # Install the package itself (fast)
 RUN pip install --no-cache-dir .
@@ -93,6 +105,6 @@ COPY --from=frontend-build /app/frontend/.next /container/backend/image_converte
 COPY --from=frontend-build /app/frontend/public /container/backend/image_converter/presentation/web/static_site
 
 
-EXPOSE 5000
+EXPOSE 80
 
 ENTRYPOINT ["/container/entrypoint.sh"]

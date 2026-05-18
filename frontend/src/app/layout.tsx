@@ -26,6 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="stylesheet" href="/image-pro/ch-branding.css" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider
           attribute="class"
@@ -39,6 +42,7 @@ export default function RootLayout({
           </div>
           {children}
         </ThemeProvider>
+        <script src="/image-pro/ch-header.js" defer />
       </body>
     </html>
   );
