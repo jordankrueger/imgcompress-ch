@@ -86,25 +86,29 @@ def start_scheduler():
     app_logger.log("Scheduler started for periodic temp folder cleanup.", "info")
 
 
-# CH: strip /image-pro prefix so existing Flask routes serve at root
+# CH: strip /image-pro prefix so existing Flask routes serve at root.
+# Match only at a path boundary — startswith("/image-pro") alone would
+# also match "/image-prowhatever".
 class _StripImageProPrefix:
     def __init__(self, app):
         self.app = app
     def __call__(self, environ, start_response):
         path = environ.get("PATH_INFO", "")
-        if path.startswith("/image-pro"):
+        if path == "/image-pro" or path.startswith("/image-pro/"):
             environ["PATH_INFO"] = path[len("/image-pro"):] or "/"
             environ["SCRIPT_NAME"] = (environ.get("SCRIPT_NAME") or "") + "/image-pro"
         return self.app(environ, start_response)
 app.wsgi_app = _StripImageProPrefix(app.wsgi_app)
 
 # CH patches: privacy hook + temp cleanup scheduler (normally launched by bootstraper)
+import os  # noqa: E402
 from backend.image_converter.presentation.web import ch_privacy  # noqa: E402
 ch_privacy.register(app)
 
-# Start the upstream cleanup scheduler at WSGI import time (Gunicorn skips bootstraper)
-import os as _os  # noqa: E402
-if _os.environ.get("CH_DISABLE_UPSTREAM_SCHEDULER") != "1":
+# Start the upstream cleanup scheduler at WSGI import time (Gunicorn skips bootstraper).
+# With Gunicorn --preload, this runs once in the master process before forking
+# workers — avoiding duplicate schedulers racing on the same temp dir.
+if os.environ.get("CH_DISABLE_UPSTREAM_SCHEDULER") != "1":
     try:
         start_scheduler()
     except Exception as _exc:  # noqa: BLE001
