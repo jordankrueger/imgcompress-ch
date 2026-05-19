@@ -5,6 +5,7 @@ import Image from "next/image";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { VisuallyHidden } from "@/components/visually-hidden";
 import { cn } from "@/lib/utils";
+import { assetUrl } from "@/lib/apiUrl";
 
 interface SplashScreenProps {
   isVisible: boolean;
@@ -264,7 +265,7 @@ export function SplashScreen({
                 <div className="w-full flex justify-center animate-breathe">
                   <div className="relative w-[460px] h-[220px] max-w-[92vw] sm:w-[520px] sm:h-[240px] animate-glow after:absolute after:inset-0 after:rounded-[36%] after:bg-gradient-to-r after:from-blue-500/20 after:to-fuchsia-500/20 after:blur-3xl after:-z-10">
                     <Image
-                      src="/logo_transparent.png"
+                      src={assetUrl("/logo_transparent.png")}
                       alt="ImgCompress Logo"
                       fill
                       draggable={false}

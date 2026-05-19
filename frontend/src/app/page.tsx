@@ -23,7 +23,7 @@ import BackendStatusBanner from "@/components/BackendStatusBanner";
 import ErrorModal from "@/components/ErrorModal";
 import FileManager from "@/components/StorageFileManager";
 import CompressedFilesDrawer from "@/components/CompressedFilesDrawer";
-import { apiUrl } from "@/lib/apiUrl";
+import { apiUrl, assetUrl } from "@/lib/apiUrl";
 import PageFooter from "@/components/PageFooter";
 import FileConversionForm from "@/components/FileConversionForm";
 import { DownloadZipToast } from "@/components/CustomToast";
@@ -438,7 +438,7 @@ function HomePageContent() {
           {configReady && !disableLogo ? (
             <CardHeader className="pt-12 pb-8 flex flex-col items-center">
               <Image
-                src="/logo_transparent.png"
+                src={assetUrl("/logo_transparent.png")}
                 width={260}
                 height={260}
                 alt="ImgCompress - Image Compression Tool"

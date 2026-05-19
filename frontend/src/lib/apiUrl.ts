@@ -1,13 +1,18 @@
-// CH-patch: Next.js `basePath` prefixes assets + router URLs but NOT fetch() calls.
-// At https://tools.campaign.help/image-pro/, a `fetch("/api/...")` resolves to the
-// landing's nginx (which returns HTML) instead of this fork's Flask backend. Wrap
-// every API call with apiUrl() so the prefix is applied consistently.
+// CH-patch: Next.js `basePath` prefixes router links but does NOT auto-prefix:
+//   - fetch() calls
+//   - <Image> src in static-export mode with `images.unoptimized: true`
+// At https://tools.campaign.help/image-pro/, hardcoded "/api/..." or
+// "/some-asset.png" paths resolve to the landing's nginx instead of this
+// fork. Wrap every such path with apiUrl() / assetUrl() to apply the prefix.
 //
-// If the basePath ever changes, update API_BASE here — it's the only place.
+// If the basePath ever changes, update BASE here — it's the only place.
 
-const API_BASE = "/image-pro";
+const BASE = "/image-pro";
 
 export const apiUrl = (path: string): string => {
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  return `${API_BASE}${normalized}`;
+  return `${BASE}${normalized}`;
 };
+
+// Same shape as apiUrl, named separately so callers signal intent.
+export const assetUrl = (path: string): string => apiUrl(path);
