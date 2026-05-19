@@ -86,15 +86,12 @@ RUN rm -f /etc/nginx/sites-enabled/default && \
 RUN pip install --no-cache-dir .
 
 # Pre-download rembg model so background removal doesn't fetch at runtime.
+# NOTE: must use a separate script (not a heredoc) because Coolify injects
+# `ARG COOLIFY_*=...` metadata lines after RUN directives, which breaks
+# Python syntax if the script body is inlined.
 ENV U2NET_HOME=/container/.u2net
-RUN python - <<'PY'
-import json
-from rembg import new_session
-with open("backend/image_converter/config/rembg.json", "r", encoding="utf-8") as f:
-    model_name = json.load(f).get("model_name", "u2net")
-new_session(model_name)
-print(f"rembg model cached: {model_name}")
-PY
+COPY scripts/cache_rembg_model.py /container/scripts/cache_rembg_model.py
+RUN python /container/scripts/cache_rembg_model.py
 
 # Create the directory where the static frontend will be placed.
 RUN mkdir -p /container/backend/image_converter/presentation/web/static_site
