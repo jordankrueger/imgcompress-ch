@@ -1,5 +1,6 @@
 import { useState, useCallback  } from "react";
 import { InternetHealthResponse } from "@/models/InternetHealthResponse";
+import { apiUrl } from "@/lib/apiUrl";
 export function useInternetHealth() {
   const [hasInternet, setHasInternet] = useState<boolean | null>(null);
   const [internetLastUpdate, setInternetLastUpdate] = useState<string | null>(null);
@@ -8,7 +9,7 @@ export function useInternetHealth() {
   const checkInternet = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/health/internet");
+      const res = await fetch(apiUrl("/api/health/internet"));
       if (!res.ok) throw new Error("Internet Backend Route unreachable");
 
       const data: InternetHealthResponse = await res.json();

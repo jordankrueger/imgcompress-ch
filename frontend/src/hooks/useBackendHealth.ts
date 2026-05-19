@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {BackendHealthResponse} from "@/models/BackendHealthResponse";
+import { apiUrl } from "@/lib/apiUrl";
 export function useBackendHealth(
   minDelay: number = 5000,
   maxDelay: number = 15000
@@ -13,7 +14,7 @@ export function useBackendHealth(
 
     const check = async () => {
       try {
-        const res = await fetch("/api/health/backend");
+        const res = await fetch(apiUrl("/api/health/backend"));
         if (!res.ok) throw new Error("Backend unreachable");
 
         const data: BackendHealthResponse = await res.json();

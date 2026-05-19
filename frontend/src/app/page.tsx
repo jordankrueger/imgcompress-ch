@@ -23,6 +23,7 @@ import BackendStatusBanner from "@/components/BackendStatusBanner";
 import ErrorModal from "@/components/ErrorModal";
 import FileManager from "@/components/StorageFileManager";
 import CompressedFilesDrawer from "@/components/CompressedFilesDrawer";
+import { apiUrl } from "@/lib/apiUrl";
 import PageFooter from "@/components/PageFooter";
 import FileConversionForm from "@/components/FileConversionForm";
 import { DownloadZipToast } from "@/components/CustomToast";
@@ -285,7 +286,7 @@ function HomePageContent() {
         const controller = new AbortController();
         abortControllerRef.current = controller;
 
-        const res = await fetch("/api/compress", {
+        const res = await fetch(apiUrl("/api/compress"), {
           method: "POST",
           body: formData,
           signal: controller.signal,
@@ -387,7 +388,7 @@ function HomePageContent() {
 
   const onForceCleanCallback = useCallback(async () => {
     try {
-      const res = await fetch("/api/force_cleanup", { method: "POST" });
+      const res = await fetch(apiUrl("/api/force_cleanup"), { method: "POST" });
       const json = await res.json();
       if (json.status === "ok") {
         toast.success(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiUrl } from "@/lib/apiUrl";
 
 interface UseSupportedExtensionsResult {
   supportedExtensions: string[];
@@ -21,8 +22,8 @@ export function useSupportedExtensions(): UseSupportedExtensionsResult {
       setError(null);
       try {
         const [supportedRes, verifiedRes] = await Promise.all([
-          fetch("/api/images_supported"),
-          fetch("/api/images_verified"),
+          fetch(apiUrl("/api/images_supported")),
+          fetch(apiUrl("/api/images_verified")),
         ]);
 
         if (!supportedRes.ok || !verifiedRes.ok) {

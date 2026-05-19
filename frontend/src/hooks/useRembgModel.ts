@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiUrl";
 
 interface UseRembgModelResult {
   modelName: string | null;
@@ -16,7 +17,7 @@ export function useRembgModel(): UseRembgModelResult {
   useEffect(() => {
     const fetchModelName = async () => {
       try {
-        const res = await fetch("/api/rembg_model");
+        const res = await fetch(apiUrl("/api/rembg_model"));
         if (!res.ok) {
           throw new Error("Failed to load rembg model name");
         }

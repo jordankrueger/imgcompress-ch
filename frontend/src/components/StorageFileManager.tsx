@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Trash, HardDrive } from "lucide-react";
 import { BackendStatusFloating } from "@/components/BackendStatusFloating";
+import { apiUrl } from "@/lib/apiUrl";
 
 
 import {
@@ -51,7 +52,7 @@ export default function FileManager({ onForceClean }: FileManagerProps) {
   const fetchContainerFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/container_files");
+      const res = await fetch(apiUrl("/api/container_files"));
       const json = await res.json();
       setData(json);
     } catch (error) {
@@ -65,7 +66,7 @@ export default function FileManager({ onForceClean }: FileManagerProps) {
   
   const fetchStorageInfo = useCallback(async () => {
     try {
-      const res = await fetch("/api/storage_info");
+      const res = await fetch(apiUrl("/api/storage_info"));
       const json = await res.json();
       setStorage(json);
     } catch (error) {
