@@ -1,0 +1,195 @@
+name: Upstream sync (dry-run)
+
+# Monthly check for upstream changes. DRY-RUN: never pushes, never deploys.
+# It probes whether upstream/main merges cleanly into ch-patches, validates
+# the Next.js frontend (typecheck + build) on the merged tree, and opens a
+# summary issue. The Python backend tests are NOT run here: runUnitTests.sh
+# activates an in-container /venv and the backend needs heavy system libs
+# (libheif, ghostscript, ...). The full ~1.5GB rembg Docker build is also
+# skipped on purpose. Conflict probe still covers backend file conflicts.
+# Going live = set repo variable CH_LIVE_DEPLOY=true (see Task 5.3).
+
+on:
+  schedule:
+    - cron: "20 9 1 * *"   # 1st of month, 09:20 UTC (staggered)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_REPO: https://github.com/karimz1/imgcompress
+  UPSTREAM_BRANCH: main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ch-patches
+        uses: actions/checkout@v4
+        with:
+          ref: ch-patches
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "$UPSTREAM_REPO"
+          git fetch --no-tags upstream "$UPSTREAM_BRANCH"
+
+      - name: Analyze upstream delta
+        id: analyze
+        run: |
+          set -uo pipefail
+          UB="upstream/$UPSTREAM_BRANCH"
+
+          # --- LICENSE halt check (compare blob SHAs) ---
+          A=$(git rev-parse "HEAD:LICENSE" 2>/dev/null || echo "none")
+          B=$(git rev-parse "$UB:LICENSE" 2>/dev/null || echo "none")
+          if [ "$B" = "none" ]; then LICENSE="missing-upstream"
+          elif [ "$A" = "$B" ]; then LICENSE="unchanged"
+          else LICENSE="CHANGED"; fi
+          echo "license=$LICENSE" >> "$GITHUB_OUTPUT"
+
+          # --- new upstream commits since our fork's main ---
+          NEW=$(git rev-list --count "origin/main..$UB" 2>/dev/null || echo "0")
+          echo "new_commits=$NEW" >> "$GITHUB_OUTPUT"
+
+          # --- can main fast-forward to upstream? ---
+          if git merge-base --is-ancestor origin/main "$UB"; then
+            echo "main_ff=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "main_ff=no" >> "$GITHUB_OUTPUT"
+          fi
+
+          # --- shortlog of new upstream work ---
+          git shortlog --no-merges "origin/main..$UB" 2>/dev/null | head -80 > /tmp/shortlog.txt || true
+
+          # --- merge probe into ch-patches (skip on license change / nothing new) ---
+          CONFLICT="not-tested"
+          if [ "$LICENSE" != "CHANGED" ] && [ "$NEW" != "0" ]; then
+            if git merge --no-commit --no-ff "$UB" >/tmp/merge.out 2>&1; then
+              CONFLICT="clean"
+              git commit -q --no-edit -m "ci(dry-run): merge upstream for validation" || true
+            else
+              CONFLICT="conflicts"
+              git diff --name-only --diff-filter=U > /tmp/conflicts.txt 2>/dev/null || true
+              git merge --abort 2>/dev/null || true
+            fi
+          elif [ "$NEW" = "0" ]; then
+            CONFLICT="up-to-date"
+          fi
+          echo "conflict=$CONFLICT" >> "$GITHUB_OUTPUT"
+          echo "Analyze: license=$LICENSE new=$NEW conflict=$CONFLICT"
+
+      - name: Setup Node
+        if: steps.analyze.outputs.conflict == 'clean'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable pnpm
+        if: steps.analyze.outputs.conflict == 'clean'
+        run: corepack enable
+
+      - name: Install deps (frontend)
+        id: install
+        if: steps.analyze.outputs.conflict == 'clean'
+        continue-on-error: true
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (frontend)
+        id: test
+        if: steps.analyze.outputs.conflict == 'clean'
+        continue-on-error: true
+        working-directory: frontend
+        run: pnpm lint
+
+      - name: Build (frontend)
+        id: build
+        if: steps.analyze.outputs.conflict == 'clean'
+        continue-on-error: true
+        working-directory: frontend
+        run: pnpm build
+
+      - name: Compose + open report issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LICENSE_STATUS: ${{ steps.analyze.outputs.license }}
+          NEW_COMMITS: ${{ steps.analyze.outputs.new_commits }}
+          MAIN_FF: ${{ steps.analyze.outputs.main_ff }}
+          CONFLICT: ${{ steps.analyze.outputs.conflict }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          set -uo pipefail
+          DATE=$(date -u +%Y-%m-%d)
+          REPO="${{ github.repository }}"
+          BODY=/tmp/issue.md
+
+          if [ "$LICENSE_STATUS" = "CHANGED" ]; then
+            TITLE="⚠️ Upstream sync HALTED (license change) — $DATE"
+            LABELS="upstream-sync,requires-jordan-review"
+          else
+            TITLE="Upstream sync (dry-run) — $DATE"
+            LABELS="upstream-sync"
+          fi
+
+          {
+            echo "**Mode:** dry-run — no push, no deploy."
+            echo "**Upstream:** \`$UPSTREAM_REPO\` @ \`$UPSTREAM_BRANCH\`"
+            echo "**Run:** https://github.com/$REPO/actions/runs/${{ github.run_id }}"
+            echo ""
+            echo "_Frontend (Next.js) validated only; Python backend + full Docker build are not run in CI (see workflow header)._"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| LICENSE | $LICENSE_STATUS |"
+            echo "| New upstream commits | $NEW_COMMITS |"
+            echo "| main fast-forwardable | $MAIN_FF |"
+            echo "| Merge into ch-patches | $CONFLICT |"
+            echo "| Install (frontend) | ${INSTALL_OUTCOME:-n/a} |"
+            echo "| Typecheck (frontend) | ${TEST_OUTCOME:-n/a} |"
+            echo "| Build (frontend) | ${BUILD_OUTCOME:-n/a} |"
+            echo ""
+            if [ "$LICENSE_STATUS" = "CHANGED" ]; then
+              echo "### 🛑 License changed upstream"
+              echo "Sync halted before any merge. Review the upstream LICENSE diff before proceeding."
+              echo ""
+            fi
+            if [ "$CONFLICT" = "conflicts" ] && [ -s /tmp/conflicts.txt ]; then
+              echo "### ⚠️ Merge conflicts in"
+              echo '```'
+              cat /tmp/conflicts.txt
+              echo '```'
+              echo ""
+            fi
+            if [ -s /tmp/shortlog.txt ]; then
+              echo "### Upstream commits since last sync"
+              echo '```'
+              cat /tmp/shortlog.txt
+              echo '```'
+            else
+              echo "_No new upstream commits._"
+            fi
+          } > "$BODY"
+
+          gh issue create --repo "$REPO" --title "$TITLE" --label "$LABELS" --body-file "$BODY"
+
+      # --- live deploy placeholder — dormant until Task 5.3 ---
+      - name: Deploy (live only)
+        if: ${{ vars.CH_LIVE_DEPLOY == 'true' && steps.analyze.outputs.conflict == 'clean' }}
+        run: |
+          echo "TODO (Task 5.3): push merged ch-patches and trigger Coolify deploy via API"
