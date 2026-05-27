@@ -13,6 +13,7 @@ import {
   DrawerFooter,
 } from "@/components/ui/drawer";
 import { pluralize } from "@/lib/helpers";
+import { apiUrl } from "@/lib/apiUrl";
 import { toast, ToastContainer } from "react-toastify";
 import { FileDown } from "lucide-react";
 import GitHubStarBanner from "@/components/GitHubStarBanner";
@@ -85,9 +86,9 @@ const CompressedFilesDrawer: React.FC<CompressedFilesDrawerProps> = ({
                 {converted.map((fname) => (
                   <li key={fname} className="text-center" data-testid="drawer-uploaded-file-item">
                     <a data-testid="drawer-uploaded-file-item-link"
-                      href={`/api/download?folder=${encodeURIComponent(
+                      href={apiUrl(`/api/download?folder=${encodeURIComponent(
                         destFolder
-                      )}&file=${encodeURIComponent(fname)}`}
+                      )}&file=${encodeURIComponent(fname)}`)}
                       onClick={() => handleDownloadItemClickeEvent(fname)}
                       className="text-blue-400 underline"
                     >

@@ -151,9 +151,9 @@ export default function FileManager({ onForceClean }: FileManagerProps) {
                 {}
                 <div className="overflow-y-auto max-h-40 space-y-2">
                   {data.files.map((file, index) => {
-                    const downloadUrl = `/api/download?folder=${encodeURIComponent(
+                    const downloadUrl = apiUrl(`/api/download?folder=${encodeURIComponent(
                       file.folder_path
-                    )}&file=${encodeURIComponent(file.filename)}`;
+                    )}&file=${encodeURIComponent(file.filename)}`);
                     return (
                       <div
                         key={index}

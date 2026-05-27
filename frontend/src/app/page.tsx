@@ -380,9 +380,9 @@ function HomePageContent() {
   }, []);
 
   const handleDownloadAll = useCallback(() => {
-    window.location.href = `/api/download_all?folder=${encodeURIComponent(
+    window.location.href = apiUrl(`/api/download_all?folder=${encodeURIComponent(
       destFolder
-    )}`;
+    )}`);
     toast(<DownloadZipToast />);
   }, [destFolder]);
 
