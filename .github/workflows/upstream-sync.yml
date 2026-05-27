@@ -7,7 +7,8 @@ name: Upstream sync (dry-run)
 # activates an in-container /venv and the backend needs heavy system libs
 # (libheif, ghostscript, ...). The full ~1.5GB rembg Docker build is also
 # skipped on purpose. Conflict probe still covers backend file conflicts.
-# Going live = set repo variable CH_LIVE_DEPLOY=true (see Task 5.3).
+# Report-only: the real upstream merge + deploy runs trusted-side (Mac Mini), not from CI.
+# See tools-site CLAUDE.md "Upstream sync" (Phase 5.3, option A).
 
 on:
   schedule:
@@ -187,9 +188,3 @@ jobs:
           } > "$BODY"
 
           gh issue create --repo "$REPO" --title "$TITLE" --label "$LABELS" --body-file "$BODY"
-
-      # --- live deploy placeholder — dormant until Task 5.3 ---
-      - name: Deploy (live only)
-        if: ${{ vars.CH_LIVE_DEPLOY == 'true' && steps.analyze.outputs.conflict == 'clean' }}
-        run: |
-          echo "TODO (Task 5.3): push merged ch-patches and trigger Coolify deploy via API"
