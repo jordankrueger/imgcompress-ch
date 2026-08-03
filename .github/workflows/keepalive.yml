@@ -1,0 +1,59 @@
+name: Keepalive (scheduled-workflow anti-disable)
+
+# GitHub disables ALL scheduled workflows in a repo after 60 days with no
+# repository activity. These CH forks are intentionally low-churn, so that
+# clock kept expiring and silently killing the monthly upstream-sync report.
+#
+# This runs on the 15th of each month and does two things:
+#   1. Re-enables any workflow GitHub already disabled for inactivity.
+#   2. Pushes an empty commit to reset the 60-day clock.
+#
+# Pushes made with GITHUB_TOKEN do not trigger workflow runs, so the empty
+# commit cannot kick off a build or a deploy.
+
+on:
+  schedule:
+    - cron: "0 8 15 * *"   # 15th of month, 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Re-enable workflows disabled for inactivity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows" --paginate \
+            --jq '.workflows[] | select(.state == "disabled_inactivity") | .id' \
+            > /tmp/disabled.txt
+          if [ -s /tmp/disabled.txt ]; then
+            while read -r id; do
+              echo "Re-enabling workflow $id"
+              gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/$id/enable"
+            done < /tmp/disabled.txt
+          else
+            echo "No workflows disabled for inactivity."
+          fi
+
+      - name: Push empty commit to reset the inactivity clock
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keepalive (reset scheduled-workflow inactivity clock)"
+          git push origin "HEAD:$GITHUB_REF_NAME"
